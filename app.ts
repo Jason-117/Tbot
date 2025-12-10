@@ -150,67 +150,66 @@ bot.on("message", async (ctx) => {
 
 /**
  * 将文本中所有可能干扰 MarkdownV2 的特殊字符进行转义。
+ * 保持此函数用于处理用户消息。
  * @param text 需要转义的字符串
  * @returns 转义后的字符串
  */
 function escapeMarkdownV2(text: string): string {
     // 列出所有 MarkdownV2 的特殊字符
-    // V2 模式要求几乎所有特殊符号都必须转义，除非用于格式化。
     const specialChars = /([_*\[\]()~`>#+\-=|{}.!])/g;
     return text.replace(specialChars, '\\$1');
 }
 
 async function pushMessage(ctx: any) {
-    if (!ctx.message) {
-        return; 
-    }
+    if (!ctx.message) {
+        return; 
+    }
 
-    const user = ctx.from;
-    
-    // 1. 获取消息内容并转义
-    const messageText = ctx.message.text || '（非文本消息，请查看转发内容）';
-    // 仅对用户发送的消息内容进行转义，以确保其不会破坏代码块结构
-    const escapedText = escapeMarkdownV2(messageText);
+    const user = ctx.from;
+    
+    // 1. 获取消息内容并转义
+    const messageText = ctx.message.text || '（非文本消息）';
+    const escapedText = escapeMarkdownV2(messageText);
 
-    // 2. 消息链接的 URL 部分不需要转义，但外层括号需要转义
-    const messageLink = `https://t.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
-    // 注意：这里的 ctx.me.username 在 webhook 模式下可能不存在，如果为空，可能导致链接错误。
-    // 如果您发现链接仍然有问题，可以考虑简化模板，移除链接。
+    // 2. 消息链接：确保 URL 中的斜杠 '/' 被转义为 '\/'，因为斜杠也是特殊字符
+    // 在您的 payload 中，链接已经包含转义，这里我们只对链接的括号进行转义
+    const messageLink = `https://t\\.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
+    // 注意：我们将 t.me 后面的斜杠转义，确保链接结构安全。
+    
+    // 3. 构建推送文本：使用 __ 标记粗体，使用 \- 标记列表，并对所有内容进行严格转义
+    const pushText = `
+__📩 客户新消息__
 
-    // 3. 构建推送文本：注意对模板中非格式化字符的转义 (\-)
-    const pushText = `
-*\\*\\*📩 客户新消息\\*\\**
-
-*\\*\\*👤 用户信息\\*\\**
+__👤 用户信息__
 \\- ID: \`${user.id}\`
 \\- 用户名: @${user.username || 'N/A'}
 \\- 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
 
-*\\*\\*💬 消息内容\\*\\**
+__💬 消息内容__
 \`\`\`
 ${escapedText}
 \`\`\`
-*\\*\\*🔗 消息链接\\*\\**
-[点击查看原消息](${escapeMarkdownV2(messageLink)})
+__🔗 消息链接__
+\\[点击查看原消息\\](${messageLink})
     `;
 
-    // 移除不必要的空行和缩进，以确保 MarkdownV2 解析准确
+    // 移除不必要的空行和缩进
     const cleanedText = pushText.trim().split('\n').map(line => line.trim()).join('\n');
 
-
-    try {
-        await ctx.api.sendMessage(
-            admin_id,
-            cleanedText, // 使用清理后的文本
-            { 
-                parse_mode: "MarkdownV2", 
-                disable_web_page_preview: true
-            }
-        );
-        console.log(`用户消息已推送到管理员 ${admin_id}`);
-    } catch (error) {
-        console.error("推送用户消息到管理员失败:", error);
-    }
+    try {
+        await ctx.api.sendMessage(
+            admin_id,
+            cleanedText, // 使用清理后的文本
+            { 
+                parse_mode: "MarkdownV2", 
+                disable_web_page_preview: true
+            }
+        );
+        console.log(`用户消息已推送到管理员 ${admin_id}`);
+    } catch (error) {
+        // 如果仍然失败，请将错误信息继续提供给我
+        console.error("推送用户消息到管理员失败:", error);
+    }
 }
 
 Deno.addSignalListener("SIGINT", () => bot.stop());
