@@ -137,58 +137,44 @@ bot.command("command1", async (ctx) => {
 });
 
 bot.on("message").filter((ctx) => {
+    // 确保发送者是管理员，并且是回复 Bot 转发的用户消息
     const message = ctx.message;
+    if (ctx.from?.id !== admin_id) return false;
     
-    // 1. 确保发送者是管理员
-    if (ctx.from?.id !== admin_id) {
-        return false;
-    }
-    
-    // 2. 确保这是一个对消息的回复
     const repliedMessage = message.reply_to_message;
-    if (!repliedMessage) {
-        return false;
-    }
-
-    // 3. 检查 'forward_from' 属性是否存在
-    // 使用 'in' 操作符是安全检查。如果存在，则返回 true
+    if (!repliedMessage) return false;
+    
     return 'forward_from' in repliedMessage;
 
 }, async (ctx) => {
-    // --- 消息已成功进入此处理器 ---
-    console.log(`[回复处理] 接收到管理员 ${admin_id} 的回复。正在转发给用户...`);
+    // ... [处理管理员回复的逻辑保持不变] ...
     
     // 使用类型断言安全访问属性
     const repliedMessage = ctx.message.reply_to_message!;
     const originalUser = (repliedMessage as any).forward_from; 
     const originalUserId = originalUser.id;
     
-    // 检查是否有内容可以转发
+    // ... [检查内容、转发/复制消息、回复管理员的 try/catch 块保持不变] ...
+
     const message = ctx.message;
     if (!message.text && !message.caption && !message.photo && !message.video && !message.document) {
         await ctx.reply("抱歉，我只能转发文本或媒体消息给用户。", {
             reply_to_message_id: message.message_id
         });
-        // 不返回，让它继续流到 console.log
+        return;
     }
 
     try {
-        // 转发/复制管理员的回复内容给原始用户
         await ctx.api.copyMessage(
-            originalUserId,         // 目标用户 ID
-            ctx.chat.id,            // 源聊天 ID (管理员的聊天)
-            message.message_id      // 消息 ID
+            originalUserId,         
+            ctx.chat.id,            
+            message.message_id      
         );
-
-        // 告诉管理员回复成功
         await ctx.reply(`✅ 您的回复已发送给用户 ${originalUserId}。`, {
             reply_to_message_id: message.message_id
         });
-        
         console.log(`[回复成功] 管理员的回复已转发给用户 ${originalUserId}`);
-
     } catch (error) {
-        // 确保所有错误都被捕获并输出到 Deno 日志
         const errorMessage = (error as Error).message;
         console.error(`[回复失败] 转发管理员回复给用户失败: ${errorMessage}`, error);
         await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId}。错误信息：${errorMessage}`, {
@@ -196,34 +182,39 @@ bot.on("message").filter((ctx) => {
         });
     }
     
-    // 关键步骤：处理完成后返回，阻止消息流向下方的通用处理器
-    return;
+    return; // 阻止管理员消息流向下方
 });
 
 
-// 优先级 2: 处理普通用户消息（转发给管理员）
-// 关键词回复
+// 优先级 2: 处理用户关键词回复 (使用 hears，必须在通用 on('message') 之前)
 bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
     // 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
     
+    // 检查是否是用户在回复消息，但仍命中关键词
+    // 注意：bot.hears 会自动检查消息文本，无需手动检查 reply_to_message
+
     console.log(`[用户消息] 接收到关键词消息 (${ctx.from?.id})`);
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
-    // 检查是否有消息对象，并进行推送
+    // 推送给管理员
     if (ctx.message) await pushMessage(ctx);
+    
+    // 关键：返回，阻止消息流向下方通用处理器
+    return;
 });
 
-// 通用消息回复
+
+// 优先级 3: 处理所有其他普通用户消息 (通用回复)
 bot.on("message", async (ctx) => {
     // 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
 
-    // 检查是否已被关键词处理器处理过
-    if (ctx.message?.text) return; // 避免重复处理文本消息
-    
+    // 排除已经被 bot.hears 处理过的文本消息（因为 hears 已经 return 了）
+    // 这里的 on('message') 主要处理非文本消息或未命中 hears 的文本回复
+
     console.log(`[用户消息] 接收到通用消息 (${ctx.from?.id})`);
    await ctx.reply("请联系客服",{reply_markup: services});
-   // 检查是否有消息对象，并进行推送
+   // 推送给管理员
    if (ctx.message) await pushMessage(ctx);
 });
 
