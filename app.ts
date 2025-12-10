@@ -12,6 +12,7 @@ const kv = await Deno.openKv();
 
 const handleUpdate = webhookCallback(bot, "std/http");
 
+
 interface CallbackData {
     action: string;
     messageId?: number;
@@ -237,7 +238,7 @@ Deno.serve(async (req) => {
         } catch (err) {
             console.error(err);
             return new Response("Webhook Error", { status: 500 });
-            
+
         }
     }
 
