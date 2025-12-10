@@ -148,14 +148,25 @@ bot.on("message", async (ctx) => {
    if (ctx.message) await pushMessage(ctx);
 });
 
-function escapeMarkdownV2(text: string): string {
-    // 列出所有 MarkdownV2 的特殊字符
-    const specialChars = /([_*\[\]()~`>#+\-=|{}.!])/g;
-    return text.replace(specialChars, '\\$1');
+// --- 新增：HTML 转义函数 ---
+/**
+ * 将文本中所有可能干扰 HTML 格式的特殊字符进行转义。
+ * @param text 需要转义的字符串
+ * @returns 转义后的字符串
+ */
+function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&#039;');
 }
+// --- 移除旧的 escapeMarkdownV2 函数 ---
+
 
 /**
  * 格式化用户消息的头部信息，并转发原始消息给管理员
+ * 使用 HTML 格式以避免复杂的 MarkdownV2 转义冲突。
  * @param ctx 消息上下文
  */
 async function pushMessage(ctx: any) {
@@ -165,17 +176,19 @@ async function pushMessage(ctx: any) {
 
     const user = ctx.from;
 
-    // 1. 对用户昵称进行转义，防止昵称中的特殊字符破坏 MarkdownV2 格式
-    const escapedFirstName = escapeMarkdownV2(user.first_name || 'N/A');
+    // 1. 对所有变量值进行 HTML 转义
+    const escapedUserId = escapeHtml(user.id.toString());
+    const escapedUsername = escapeHtml(user.username || 'N/A');
+    const escapedFirstName = escapeHtml(user.first_name || 'N/A');
     
-    // 2. 构造通知头，确保所有模板中的保留字符 (、) 都被转义
+    // 2. 构造 HTML 格式的通知头
     const pushText = `
-__📩 客户新消息__
+<b>📩 客户新消息</b>
 
-__👤 用户信息__
-\\- ID: \`${user.id}\`
-\\- 用户名: @${user.username || 'N/A'}
-\\- 昵称: ${escapedFirstName} \\(ID: \`${user.id}\`\\) 
+<b>👤 用户信息</b>
+• ID: <code>${escapedUserId}</code>
+• 用户名: @${escapedUsername}
+• 昵称: ${escapedFirstName} 
     `;
 
     // 移除不必要的空行和缩进
@@ -187,7 +200,7 @@ __👤 用户信息__
             admin_id,
             cleanedText,
             {
-                parse_mode: "MarkdownV2", // 使用严格的 MarkdownV2 模式
+                parse_mode: "HTML", // <--- 关键更改！
             }
         );
 
@@ -196,7 +209,6 @@ __👤 用户信息__
 
         console.log(`用户消息已转发给管理员 ${admin_id}`);
     } catch (error) {
-        // 如果再次失败，请检查错误输出，但这次我们已经处理了所有已知的 MarkdownV2 问题
         console.error("推送用户消息到管理员失败:", error);
     }
 }
