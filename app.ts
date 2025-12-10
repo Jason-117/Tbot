@@ -155,49 +155,56 @@ bot.on("message", async (ctx) => {
  */
 function escapeMarkdownV2(text: string): string {
     // 列出所有 MarkdownV2 的特殊字符
+    // V2 模式要求几乎所有特殊符号都必须转义，除非用于格式化。
     const specialChars = /([_*\[\]()~`>#+\-=|{}.!])/g;
     return text.replace(specialChars, '\\$1');
 }
 
 async function pushMessage(ctx: any) {
-    // 使用更简单的转发方案，以支持所有消息类型
-    if (!ctx.message) {
-        return; 
-    }
+    if (!ctx.message) {
+        return; 
+    }
 
-    const user = ctx.from;
-    
-    // 1. 获取消息内容并转义，确保不会破坏 Markdown 格式
-    const messageText = ctx.message.text || '（非文本消息，请查看转发内容）';
-    const escapedText = escapeMarkdownV2(messageText);
+    const user = ctx.from;
+    
+    // 1. 获取消息内容并转义
+    const messageText = ctx.message.text || '（非文本消息，请查看转发内容）';
+    // 仅对用户发送的消息内容进行转义，以确保其不会破坏代码块结构
+    const escapedText = escapeMarkdownV2(messageText);
 
-    // 2. 消息链接现在也需要转义，因为 URL 可能包含特殊字符（例如在 ID 中）
-    const messageLink = `https://t.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
-    // 注意：ctx.me.username 在 webhook 模式下可能需要通过 bot.getMe() 获取并存储
-    
-    const pushText = `
-**📩 客户新消息**
+    // 2. 消息链接的 URL 部分不需要转义，但外层括号需要转义
+    const messageLink = `https://t.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
+    // 注意：这里的 ctx.me.username 在 webhook 模式下可能不存在，如果为空，可能导致链接错误。
+    // 如果您发现链接仍然有问题，可以考虑简化模板，移除链接。
 
-**👤 用户信息**
-* ID: \`${user.id}\`
-* 用户名: @${user.username || 'N/A'}
-* 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
+    // 3. 构建推送文本：注意对模板中非格式化字符的转义 (\-)
+    const pushText = `
+*\\*\\*📩 客户新消息\\*\\**
 
-**💬 消息内容**
+*\\*\\*👤 用户信息\\*\\**
+\\- ID: \`${user.id}\`
+\\- 用户名: @${user.username || 'N/A'}
+\\- 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
+
+*\\*\\*💬 消息内容\\*\\**
 \`\`\`
 ${escapedText}
 \`\`\`
-**🔗 消息链接**
-[点击查看原消息](${messageLink})
+*\\*\\*🔗 消息链接\\*\\**
+[点击查看原消息](${escapeMarkdownV2(messageLink)})
     `;
+
+    // 移除不必要的空行和缩进，以确保 MarkdownV2 解析准确
+    const cleanedText = pushText.trim().split('\n').map(line => line.trim()).join('\n');
+
 
     try {
         await ctx.api.sendMessage(
             admin_id,
-            pushText,
+            cleanedText, // 使用清理后的文本
             { 
-                parse_mode: "MarkdownV2", // 推荐使用 MarkdownV2
-                disable_web_page_preview: true // 禁用链接预览
+                parse_mode: "MarkdownV2", 
+                disable_web_page_preview: true
             }
         );
         console.log(`用户消息已推送到管理员 ${admin_id}`);
