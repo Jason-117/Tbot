@@ -139,54 +139,71 @@ bot.command("command1", async (ctx) => {
 //关键词回复
 bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
-    await pushMessage(ctx);
+    if (ctx.message) await pushMessage(ctx);
 });
 
 // 处理其他的消息。
 bot.on("message", async (ctx) => {
    await ctx.reply("请联系客服",{reply_markup: services});
-   await pushMessage(ctx);
+   if (ctx.message) await pushMessage(ctx);
 });
 
+/**
+ * 将文本中所有可能干扰 MarkdownV2 的特殊字符进行转义。
+ * @param text 需要转义的字符串
+ * @returns 转义后的字符串
+ */
+function escapeMarkdownV2(text: string): string {
+    // 列出所有 MarkdownV2 的特殊字符
+    const specialChars = /([_*\[\]()~`>#+\-=|{}.!])/g;
+    return text.replace(specialChars, '\\$1');
+}
+
 async function pushMessage(ctx: any) {
-    // 确保有文本消息
-    if (!ctx.message || !ctx.message.text) {
-        // 如果是图片、文件等，可以考虑使用 ctx.forwardMessage(ADMIN_CHAT_ID)
+    // 使用更简单的转发方案，以支持所有消息类型
+    if (!ctx.message) {
         return; 
     }
 
     const user = ctx.from;
-    const messageLink = `https://t.me/${ctx.me.username}/${ctx.chat.id}/${ctx.message.message_id}`; // 尝试构建消息链接
+    
+    // 1. 获取消息内容并转义，确保不会破坏 Markdown 格式
+    const messageText = ctx.message.text || '（非文本消息，请查看转发内容）';
+    const escapedText = escapeMarkdownV2(messageText);
 
+    // 2. 消息链接现在也需要转义，因为 URL 可能包含特殊字符（例如在 ID 中）
+    const messageLink = `https://t.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
+    // 注意：ctx.me.username 在 webhook 模式下可能需要通过 bot.getMe() 获取并存储
+    
     const pushText = `
-        **📩 客户新消息**
+**📩 客户新消息**
 
-        **👤 用户信息**
-        * ID: \`${user.id}\`
-        * 用户名: @${user.username || 'N/A'}
-        * 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
+**👤 用户信息**
+* ID: \`${user.id}\`
+* 用户名: @${user.username || 'N/A'}
+* 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
 
-        **💬 消息内容**
-        \`\`\`
-        ${ctx.message.text}
-        \`\`\`
-        **🔗 消息链接**
-        [点击查看原消息](${messageLink})
-            `;
+**💬 消息内容**
+\`\`\`
+${escapedText}
+\`\`\`
+**🔗 消息链接**
+[点击查看原消息](${messageLink})
+    `;
 
-    try {
-        await ctx.api.sendMessage(
-            admin_id,
-            pushText,
-            { 
-                parse_mode: "Markdown",
-                disable_web_page_preview: true // 禁用链接预览
-            }
-        );
-        console.log(`用户消息已推送到管理员 ${admin_id}`);
-    } catch (error) {
-        console.error("推送用户消息到管理员失败:", error);
-    }
+    try {
+        await ctx.api.sendMessage(
+            admin_id,
+            pushText,
+            { 
+                parse_mode: "MarkdownV2", // 推荐使用 MarkdownV2
+                disable_web_page_preview: true // 禁用链接预览
+            }
+        );
+        console.log(`用户消息已推送到管理员 ${admin_id}`);
+    } catch (error) {
+        console.error("推送用户消息到管理员失败:", error);
+    }
 }
 
 Deno.addSignalListener("SIGINT", () => bot.stop());
