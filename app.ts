@@ -237,6 +237,7 @@ Deno.serve(async (req) => {
         } catch (err) {
             console.error(err);
             return new Response("Webhook Error", { status: 500 });
+            
         }
     }
 
