@@ -205,7 +205,7 @@ async function pushMessage(ctx: any) {
         );
 
         // 2. 转发用户的原始消息（支持所有类型）
-        await ctx.forwardMessage(admin_id, ctx.chat.id, ctx.message!.message_id);
+        await ctx.api.forwardMessage(admin_id, ctx.chat.id, ctx.message!.message_id);
 
         console.log(`用户消息已转发给管理员 ${admin_id}`);
     } catch (error) {
