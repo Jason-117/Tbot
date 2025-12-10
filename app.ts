@@ -151,9 +151,13 @@ bot.on("message").filter((ctx) => {
     }
 
     // 3. 检查 'forward_from' 属性是否存在
+    // 使用 'in' 操作符是安全检查。如果存在，则返回 true
     return 'forward_from' in repliedMessage;
 
 }, async (ctx) => {
+    // --- 消息已成功进入此处理器 ---
+    console.log(`[回复处理] 接收到管理员 ${admin_id} 的回复。正在转发给用户...`);
+    
     // 使用类型断言安全访问属性
     const repliedMessage = ctx.message.reply_to_message!;
     const originalUser = (repliedMessage as any).forward_from; 
@@ -165,32 +169,29 @@ bot.on("message").filter((ctx) => {
         await ctx.reply("抱歉，我只能转发文本或媒体消息给用户。", {
             reply_to_message_id: message.message_id
         });
-        return;
+        // 不返回，让它继续流到 console.log
     }
 
     try {
-        // --- 修正区域：简化 copyMessage 调用，避免 caption 格式问题 ---
-        
+        // 转发/复制管理员的回复内容给原始用户
         await ctx.api.copyMessage(
             originalUserId,         // 目标用户 ID
             ctx.chat.id,            // 源聊天 ID (管理员的聊天)
             message.message_id      // 消息 ID
-            // 移除 options 对象，不修改 caption
         );
-
-        // -----------------------------------------------------------------
 
         // 告诉管理员回复成功
         await ctx.reply(`✅ 您的回复已发送给用户 ${originalUserId}。`, {
             reply_to_message_id: message.message_id
         });
         
-        console.log(`管理员 ${admin_id} 的回复已转发给用户 ${originalUserId}`);
+        console.log(`[回复成功] 管理员的回复已转发给用户 ${originalUserId}`);
 
     } catch (error) {
-        // 捕获权限或发送失败的错误
-        console.error("转发管理员回复给用户失败:", error);
-        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId}。错误信息：${(error as Error).message}`, {
+        // 确保所有错误都被捕获并输出到 Deno 日志
+        const errorMessage = (error as Error).message;
+        console.error(`[回复失败] 转发管理员回复给用户失败: ${errorMessage}`, error);
+        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId}。错误信息：${errorMessage}`, {
             reply_to_message_id: message.message_id
         });
     }
@@ -206,6 +207,7 @@ bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
     // 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
     
+    console.log(`[用户消息] 接收到关键词消息 (${ctx.from?.id})`);
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
     // 检查是否有消息对象，并进行推送
     if (ctx.message) await pushMessage(ctx);
@@ -215,7 +217,11 @@ bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
 bot.on("message", async (ctx) => {
     // 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
+
+    // 检查是否已被关键词处理器处理过
+    if (ctx.message?.text) return; // 避免重复处理文本消息
     
+    console.log(`[用户消息] 接收到通用消息 (${ctx.from?.id})`);
    await ctx.reply("请联系客服",{reply_markup: services});
    // 检查是否有消息对象，并进行推送
    if (ctx.message) await pushMessage(ctx);
