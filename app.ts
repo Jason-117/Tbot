@@ -6,7 +6,7 @@ if (!BOT_TOKEN) {
     throw new Error("BOT_TOKEN 环境变量未设置！");
 }
 const bot = new Bot(BOT_TOKEN);
-const admin_id = "7511864556";
+const admin_id = "6627451529";
 
 const kv = await Deno.openKv();
 
