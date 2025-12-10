@@ -144,6 +144,7 @@ bot.on("message").filter((ctx) => {
     const repliedMessage = message.reply_to_message;
     if (!repliedMessage) return false;
     
+    // 检查 'forward_from' 属性是否存在
     return 'forward_from' in repliedMessage;
 
 }, async (ctx) => {
@@ -154,8 +155,6 @@ bot.on("message").filter((ctx) => {
     const originalUser = (repliedMessage as any).forward_from; 
     const originalUserId = originalUser.id;
     
-    // ... [检查内容、转发/复制消息、回复管理员的 try/catch 块保持不变] ...
-
     const message = ctx.message;
     if (!message.text && !message.caption && !message.photo && !message.video && !message.document) {
         await ctx.reply("抱歉，我只能转发文本或媒体消息给用户。", {
@@ -186,33 +185,39 @@ bot.on("message").filter((ctx) => {
 });
 
 
-// 优先级 2: 处理用户关键词回复 (使用 hears，必须在通用 on('message') 之前)
-bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
-    // 排除管理员自己发的消息
+// 优先级 2: 统一处理所有用户发送的文本消息 (包括回复)
+bot.on("message:text", async (ctx) => {
+    // 1. 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
-    
-    // 检查是否是用户在回复消息，但仍命中关键词
-    // 注意：bot.hears 会自动检查消息文本，无需手动检查 reply_to_message
 
-    console.log(`[用户消息] 接收到关键词消息 (${ctx.from?.id})`);
-    await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
-    // 推送给管理员
-    if (ctx.message) await pushMessage(ctx);
-    
-    // 关键：返回，阻止消息流向下方通用处理器
-    return;
+    const userText = ctx.message.text;
+    const isKeywordMessage = userText.match(/[TG飞机WS协议直登筛选过滤云控]/i); 
+
+    // 2. 检查是否命中关键词
+    if (isKeywordMessage) {
+        console.log(`[用户消息] 接收到关键词消息 (${ctx.from?.id})`);
+        await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
+        
+    } else {
+        // 3. 通用文本回复
+        console.log(`[用户消息] 接收到通用文本消息 (${ctx.from?.id})`);
+        await ctx.reply("请联系客服",{reply_markup: services});
+    }
+
+    // 4. 将消息推送给管理员
+    if (ctx.message) await pushMessage(ctx);
 });
 
 
-// 优先级 3: 处理所有其他普通用户消息 (通用回复)
+// 优先级 3: 处理所有其他非文本（媒体）消息
 bot.on("message", async (ctx) => {
-    // 排除管理员自己发的消息
+    // 1. 排除管理员自己发的消息
     if (ctx.from?.id === admin_id) return;
+    
+    // 2. 排除已被上面的 bot.on('message:text') 处理过的文本消息
+    if (ctx.message.text) return; 
 
-    // 排除已经被 bot.hears 处理过的文本消息（因为 hears 已经 return 了）
-    // 这里的 on('message') 主要处理非文本消息或未命中 hears 的文本回复
-
-    console.log(`[用户消息] 接收到通用消息 (${ctx.from?.id})`);
+    console.log(`[用户消息] 接收到非文本消息 (${ctx.from?.id})`);
    await ctx.reply("请联系客服",{reply_markup: services});
    // 推送给管理员
    if (ctx.message) await pushMessage(ctx);
