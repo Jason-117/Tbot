@@ -148,6 +148,52 @@ bot.on("message", async (ctx) => {
    if (ctx.message) await pushMessage(ctx);
 });
 
+// --- 新增：处理管理员回复的逻辑 ---
+// 监听来自管理员（admin_id）的回复消息
+bot.on("message:reply_to_message").filter((ctx) => {
+    // 1. 确保是管理员（admin_id）发送的回复
+    // 2. 确保回复的消息是 Bot 之前转发的消息
+    return ctx.from?.id === admin_id && ctx.replyToMessage.forward_from;
+}, async (ctx) => {
+    const originalUser = ctx.replyToMessage.forward_from;
+    const originalUserId = originalUser.id;
+    
+    // 确保回复消息有文本或媒体内容可以转发
+    if (!ctx.message?.text && !ctx.message?.photo && !ctx.message?.video && !ctx.message?.document) {
+        await ctx.reply("抱歉，我只能转发文本或媒体消息给用户。", {
+            reply_to_message_id: ctx.message.message_id
+        });
+        return;
+    }
+
+    try {
+        // 1. 转发管理员的回复内容给原始用户
+        await ctx.api.copyMessage(
+            originalUserId, // 目标用户 ID
+            ctx.chat.id,    // 源聊天 ID (管理员的聊天)
+            ctx.message.message_id, // 消息 ID
+            {
+                // 可选：通知用户，这是人工客服回复
+                caption: ctx.message.caption ? `${ctx.message.caption}\n\n[客服回复]` : '[客服回复]',
+            }
+        );
+
+        // 2. 告诉管理员回复成功
+        await ctx.reply(`✅ 您的回复已发送给用户 ${originalUserId}。`, {
+            reply_to_message_id: ctx.message.message_id
+        });
+        
+        console.log(`管理员 ${admin_id} 的回复已转发给用户 ${originalUserId}`);
+
+    } catch (error) {
+        // 如果用户屏蔽了 Bot，转发会失败
+        console.error("转发管理员回复给用户失败:", error);
+        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId} 可能已屏蔽 Bot 或聊天不存在。`, {
+            reply_to_message_id: ctx.message.message_id
+        });
+    }
+});
+
 // --- 新增：HTML 转义函数 ---
 /**
  * 将文本中所有可能干扰 HTML 格式的特殊字符进行转义。
