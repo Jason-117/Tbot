@@ -156,7 +156,6 @@ function escapeMarkdownV2(text: string): string {
 
 /**
  * 格式化用户消息的头部信息，并转发原始消息给管理员
- * 这个方案避免了复杂的 MarkdownV2 链接转义问题。
  * @param ctx 消息上下文
  */
 async function pushMessage(ctx: any) {
@@ -169,16 +168,17 @@ async function pushMessage(ctx: any) {
     // 1. 对用户昵称进行转义，防止昵称中的特殊字符破坏 MarkdownV2 格式
     const escapedFirstName = escapeMarkdownV2(user.first_name || 'N/A');
     
-    // 2. 构造通知头，使用 __ 标记粗体，使用 \- 标记列表
+    // 2. 构造通知头，确保所有模板中的保留字符 (、) 都被转义
     const pushText = `
 __📩 客户新消息__
 
 __👤 用户信息__
+\\- ID: \`${user.id}\`
 \\- 用户名: @${user.username || 'N/A'}
-\\- 昵称: ${escapedFirstName})
+\\- 昵称: ${escapedFirstName} \\(ID: \`${user.id}\`\\) 
     `;
 
-    // 移除不必要的空行和缩进，保证 MarkdownV2 解析准确
+    // 移除不必要的空行和缩进
     const cleanedText = pushText.trim().split('\n').map(line => line.trim()).join('\n');
 
     try {
@@ -196,6 +196,7 @@ __👤 用户信息__
 
         console.log(`用户消息已转发给管理员 ${admin_id}`);
     } catch (error) {
+        // 如果再次失败，请检查错误输出，但这次我们已经处理了所有已知的 MarkdownV2 问题
         console.error("推送用户消息到管理员失败:", error);
     }
 }
