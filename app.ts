@@ -151,22 +151,13 @@ bot.on("message").filter((ctx) => {
     }
 
     // 3. 检查 'forward_from' 属性是否存在
-    // 使用 'in' 操作符进行安全检查
     return 'forward_from' in repliedMessage;
 
 }, async (ctx) => {
-    // --- 关键修正区域 ---
-    // 1. 获取回复的消息对象
+    // 使用类型断言安全访问属性
     const repliedMessage = ctx.message.reply_to_message!;
-    
-    // 2. 使用类型断言：告诉编译器，这个消息对象包含 forward_from 属性。
-    // 这将允许我们安全地访问 forward_from。
     const originalUser = (repliedMessage as any).forward_from; 
-    
-    // 因为 filter 已经检查过 forward_from 存在，所以 originalUser 不会是 null/undefined
     const originalUserId = originalUser.id;
-    // --- 关键修正区域结束 ---
-    
     
     // 检查是否有内容可以转发
     const message = ctx.message;
@@ -178,15 +169,16 @@ bot.on("message").filter((ctx) => {
     }
 
     try {
-        // 转发/复制管理员的回复内容给原始用户
+        // --- 修正区域：简化 copyMessage 调用，避免 caption 格式问题 ---
+        
         await ctx.api.copyMessage(
             originalUserId,         // 目标用户 ID
             ctx.chat.id,            // 源聊天 ID (管理员的聊天)
-            message.message_id,     // 消息 ID
-            {
-                caption: message.caption ? `${message.caption}\n\n[客服回复]` : '收到客服回复',
-            }
+            message.message_id      // 消息 ID
+            // 移除 options 对象，不修改 caption
         );
+
+        // -----------------------------------------------------------------
 
         // 告诉管理员回复成功
         await ctx.reply(`✅ 您的回复已发送给用户 ${originalUserId}。`, {
@@ -196,8 +188,9 @@ bot.on("message").filter((ctx) => {
         console.log(`管理员 ${admin_id} 的回复已转发给用户 ${originalUserId}`);
 
     } catch (error) {
+        // 捕获权限或发送失败的错误
         console.error("转发管理员回复给用户失败:", error);
-        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId} 可能已屏蔽 Bot。`, {
+        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId}。错误信息：${(error as Error).message}`, {
             reply_to_message_id: message.message_id
         });
     }
