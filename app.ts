@@ -6,6 +6,7 @@ if (!BOT_TOKEN) {
     throw new Error("BOT_TOKEN 环境变量未设置！");
 }
 const bot = new Bot(BOT_TOKEN);
+const admin_id = "7511864556";
 
 const kv = await Deno.openKv();
 
@@ -107,7 +108,6 @@ bot.callbackQuery("delete_message", async (ctx) => {
 
 //处理start
 bot.command("start", async (ctx) => {
-    
     const userId = ctx.from?.id;
     const username = ctx.from?.username;
     const firstName = ctx.from?.first_name;
@@ -138,13 +138,56 @@ bot.command("command1", async (ctx) => {
 
 //关键词回复
 bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
-    await ctx.reply("请联系客服注册平台账号",{reply_markup: services})
+    await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
+    await pushMessage(ctx);
 });
 
 // 处理其他的消息。
 bot.on("message", async (ctx) => {
-   await ctx.reply("请联系客服",{reply_markup: services})
+   await ctx.reply("请联系客服",{reply_markup: services});
+   await pushMessage(ctx);
 });
+
+async function pushMessage(ctx: any) {
+    // 确保有文本消息
+    if (!ctx.message || !ctx.message.text) {
+        // 如果是图片、文件等，可以考虑使用 ctx.forwardMessage(ADMIN_CHAT_ID)
+        return; 
+    }
+
+    const user = ctx.from;
+    const messageLink = `https://t.me/${ctx.me.username}/${ctx.chat.id}/${ctx.message.message_id}`; // 尝试构建消息链接
+
+    const pushText = `
+        **📩 客户新消息**
+
+        **👤 用户信息**
+        * ID: \`${user.id}\`
+        * 用户名: @${user.username || 'N/A'}
+        * 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
+
+        **💬 消息内容**
+        \`\`\`
+        ${ctx.message.text}
+        \`\`\`
+        **🔗 消息链接**
+        [点击查看原消息](${messageLink})
+            `;
+
+    try {
+        await ctx.api.sendMessage(
+            admin_id,
+            pushText,
+            { 
+                parse_mode: "Markdown",
+                disable_web_page_preview: true // 禁用链接预览
+            }
+        );
+        console.log(`用户消息已推送到管理员 ${admin_id}`);
+    } catch (error) {
+        console.error("推送用户消息到管理员失败:", error);
+    }
+}
 
 Deno.addSignalListener("SIGINT", () => bot.stop());
 Deno.addSignalListener("SIGTERM", () => bot.stop());
