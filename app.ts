@@ -148,66 +148,55 @@ bot.on("message", async (ctx) => {
    if (ctx.message) await pushMessage(ctx);
 });
 
-/**
- * 将文本中所有可能干扰 MarkdownV2 的特殊字符进行转义。
- * 保持此函数用于处理用户消息。
- * @param text 需要转义的字符串
- * @returns 转义后的字符串
- */
 function escapeMarkdownV2(text: string): string {
     // 列出所有 MarkdownV2 的特殊字符
     const specialChars = /([_*\[\]()~`>#+\-=|{}.!])/g;
     return text.replace(specialChars, '\\$1');
 }
 
+/**
+ * 格式化用户消息的头部信息，并转发原始消息给管理员
+ * 这个方案避免了复杂的 MarkdownV2 链接转义问题。
+ * @param ctx 消息上下文
+ */
 async function pushMessage(ctx: any) {
     if (!ctx.message) {
-        return; 
+        return;
     }
 
     const user = ctx.from;
-    
-    // 1. 获取消息内容并转义
-    const messageText = ctx.message.text || '（非文本消息）';
-    const escapedText = escapeMarkdownV2(messageText);
 
-    // 2. 消息链接：确保 URL 中的斜杠 '/' 被转义为 '\/'，因为斜杠也是特殊字符
-    // 在您的 payload 中，链接已经包含转义，这里我们只对链接的括号进行转义
-    const messageLink = `https://t\\.me/${ctx.me.username || 'c'}/${ctx.chat.id}/${ctx.message.message_id}`; 
-    // 注意：我们将 t.me 后面的斜杠转义，确保链接结构安全。
+    // 1. 对用户昵称进行转义，防止昵称中的特殊字符破坏 MarkdownV2 格式
+    const escapedFirstName = escapeMarkdownV2(user.first_name || 'N/A');
     
-    // 3. 构建推送文本：使用 __ 标记粗体，使用 \- 标记列表，并对所有内容进行严格转义
+    // 2. 构造通知头，使用 __ 标记粗体，使用 \- 标记列表
     const pushText = `
 __📩 客户新消息__
 
 __👤 用户信息__
 \\- ID: \`${user.id}\`
 \\- 用户名: @${user.username || 'N/A'}
-\\- 昵称: ${user.first_name || 'N/A'} ${user.last_name || ''}
-
-__💬 消息内容__
-\`\`\`
-${escapedText}
-\`\`\`
-__🔗 消息链接__
-\\[点击查看原消息\\](${messageLink})
+\\- 昵称: ${escapedFirstName} (ID: \`${user.id}\`)
     `;
 
-    // 移除不必要的空行和缩进
+    // 移除不必要的空行和缩进，保证 MarkdownV2 解析准确
     const cleanedText = pushText.trim().split('\n').map(line => line.trim()).join('\n');
 
     try {
+        // 1. 发送管理员通知头（带有用户信息）
         await ctx.api.sendMessage(
             admin_id,
-            cleanedText, // 使用清理后的文本
-            { 
-                parse_mode: "MarkdownV2", 
-                disable_web_page_preview: true
+            cleanedText,
+            {
+                parse_mode: "MarkdownV2", // 使用严格的 MarkdownV2 模式
             }
         );
-        console.log(`用户消息已推送到管理员 ${admin_id}`);
+
+        // 2. 转发用户的原始消息（支持所有类型）
+        await ctx.forwardMessage(admin_id, ctx.chat.id, ctx.message!.message_id);
+
+        console.log(`用户消息已转发给管理员 ${admin_id}`);
     } catch (error) {
-        // 如果仍然失败，请将错误信息继续提供给我
         console.error("推送用户消息到管理员失败:", error);
     }
 }
