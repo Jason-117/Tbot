@@ -103,7 +103,6 @@ bot.callbackQuery("delete_message", async (ctx) => {
     } catch (error) {
         console.error("撤回消息失败:", error);
         await ctx.answerCallbackQuery({ text: "撤回消息失败！", show_alert: true });
-        
     }
 });
 
