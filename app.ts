@@ -137,7 +137,7 @@ bot.command("command1", async (ctx) => {
 });
 
 //关键词回复
-bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
+bot.hears(/[TG飞机WS协议直登筛选过滤云控vbViber]/, async (ctx) => {
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
     if (ctx.message) await pushMessage(ctx);
 });
@@ -174,9 +174,8 @@ async function pushMessage(ctx: any) {
 __📩 客户新消息__
 
 __👤 用户信息__
-\\- ID: \`${user.id}\`
 \\- 用户名: @${user.username || 'N/A'}
-\\- 昵称: ${escapedFirstName} (ID: \`${user.id}\`)
+\\- 昵称: ${escapedFirstName})
     `;
 
     // 移除不必要的空行和缩进，保证 MarkdownV2 解析准确
