@@ -136,62 +136,96 @@ bot.command("command1", async (ctx) => {
     await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu })
 });
 
-//关键词回复
-bot.hears(/[TG飞机WS协议直登筛选过滤云控vbViber]/, async (ctx) => {
-    await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
-    if (ctx.message) await pushMessage(ctx);
-});
-
-// 处理其他的消息。
-bot.on("message", async (ctx) => {
-   await ctx.reply("请联系客服",{reply_markup: services});
-   if (ctx.message) await pushMessage(ctx);
-});
-
-// --- 新增：处理管理员回复的逻辑 ---
-// 监听来自管理员（admin_id）的回复消息
-bot.on("message:reply_to_message").filter((ctx) => {
-    // 1. 确保是管理员（admin_id）发送的回复
-    // 2. 确保回复的消息是 Bot 之前转发的消息
-    return ctx.from?.id === admin_id && ctx.replyToMessage.forward_from;
-}, async (ctx) => {
-    const originalUser = ctx.replyToMessage.forward_from;
-    const originalUserId = originalUser.id;
+bot.on("message").filter((ctx) => {
+    const message = ctx.message;
     
-    // 确保回复消息有文本或媒体内容可以转发
-    if (!ctx.message?.text && !ctx.message?.photo && !ctx.message?.video && !ctx.message?.document) {
+    // 1. 确保发送者是管理员
+    if (ctx.from?.id !== admin_id) {
+        return false;
+    }
+    
+    // 2. 确保这是一个对消息的回复
+    const repliedMessage = message.reply_to_message;
+    if (!repliedMessage) {
+        return false;
+    }
+
+    // 3. 检查 'forward_from' 属性是否存在
+    // 使用 'in' 操作符进行安全检查
+    return 'forward_from' in repliedMessage;
+
+}, async (ctx) => {
+    // --- 关键修正区域 ---
+    // 1. 获取回复的消息对象
+    const repliedMessage = ctx.message.reply_to_message!;
+    
+    // 2. 使用类型断言：告诉编译器，这个消息对象包含 forward_from 属性。
+    // 这将允许我们安全地访问 forward_from。
+    const originalUser = (repliedMessage as any).forward_from; 
+    
+    // 因为 filter 已经检查过 forward_from 存在，所以 originalUser 不会是 null/undefined
+    const originalUserId = originalUser.id;
+    // --- 关键修正区域结束 ---
+    
+    
+    // 检查是否有内容可以转发
+    const message = ctx.message;
+    if (!message.text && !message.caption && !message.photo && !message.video && !message.document) {
         await ctx.reply("抱歉，我只能转发文本或媒体消息给用户。", {
-            reply_to_message_id: ctx.message.message_id
+            reply_to_message_id: message.message_id
         });
         return;
     }
 
     try {
-        // 1. 转发管理员的回复内容给原始用户
+        // 转发/复制管理员的回复内容给原始用户
         await ctx.api.copyMessage(
-            originalUserId, // 目标用户 ID
-            ctx.chat.id,    // 源聊天 ID (管理员的聊天)
-            ctx.message.message_id, // 消息 ID
+            originalUserId,         // 目标用户 ID
+            ctx.chat.id,            // 源聊天 ID (管理员的聊天)
+            message.message_id,     // 消息 ID
             {
-                // 可选：通知用户，这是人工客服回复
-                caption: ctx.message.caption ? `${ctx.message.caption}\n\n[客服回复]` : '[客服回复]',
+                caption: message.caption ? `${message.caption}\n\n[客服回复]` : '收到客服回复',
             }
         );
 
-        // 2. 告诉管理员回复成功
+        // 告诉管理员回复成功
         await ctx.reply(`✅ 您的回复已发送给用户 ${originalUserId}。`, {
-            reply_to_message_id: ctx.message.message_id
+            reply_to_message_id: message.message_id
         });
         
         console.log(`管理员 ${admin_id} 的回复已转发给用户 ${originalUserId}`);
 
     } catch (error) {
-        // 如果用户屏蔽了 Bot，转发会失败
         console.error("转发管理员回复给用户失败:", error);
-        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId} 可能已屏蔽 Bot 或聊天不存在。`, {
-            reply_to_message_id: ctx.message.message_id
+        await ctx.reply(`❌ 转发失败！用户 ID: ${originalUserId} 可能已屏蔽 Bot。`, {
+            reply_to_message_id: message.message_id
         });
     }
+    
+    // 关键步骤：处理完成后返回，阻止消息流向下方的通用处理器
+    return;
+});
+
+
+// 优先级 2: 处理普通用户消息（转发给管理员）
+// 关键词回复
+bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
+    // 排除管理员自己发的消息
+    if (ctx.from?.id === admin_id) return;
+    
+    await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
+    // 检查是否有消息对象，并进行推送
+    if (ctx.message) await pushMessage(ctx);
+});
+
+// 通用消息回复
+bot.on("message", async (ctx) => {
+    // 排除管理员自己发的消息
+    if (ctx.from?.id === admin_id) return;
+    
+   await ctx.reply("请联系客服",{reply_markup: services});
+   // 检查是否有消息对象，并进行推送
+   if (ctx.message) await pushMessage(ctx);
 });
 
 // --- 新增：HTML 转义函数 ---
