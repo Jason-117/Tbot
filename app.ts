@@ -16,6 +16,8 @@ const admin_id = parseInt(ADMIN_ID);
 
 const kv = await Deno.openKv();
 
+const active = 6000 ;
+
 const handleUpdate = webhookCallback(bot, "std/http");
 
 interface CallbackData {
@@ -140,10 +142,10 @@ bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
 
         //消息存储至 Deno KV 
         const context : ReplyContext = { targetUserId : userChatId};
-        await kv.set(["reply_context",admin_id], context,{expireIn : 6000});
+        await kv.set(["reply_context",admin_id], context,{expireIn : active});
 
         //存储对话活跃时间
-        await kv.set(["active_chat",userChatId],{adminId :admin_id} ,{expireIn : 6000 })
+        await kv.set(["active_chat",userChatId],{adminId :admin_id} ,{expireIn : active })
 
         //给管理员回复提示
         const replyInstruction = `回复消息：`
@@ -247,6 +249,9 @@ bot.on("message", async (ctx) => {
             const replyText = `消息来自人工客服：\n${ctx.message.text}`;
 
             try{
+                const context : ReplyContext = { targetUserId : targetUserId};
+                await kv.set(["reply_text",admin_id],context,{expireIn : active});
+                await kv.set(["active",targetUserId],{admin:admin_id});
                 //将回复消息发送至用户
                 await bot.api.sendMessage(targetUserId,replyText,{
                     parse_mode:"Markdown"
