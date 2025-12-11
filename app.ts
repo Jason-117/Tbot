@@ -9,6 +9,8 @@ if (!BOT_TOKEN) {
 if(!ADMIN_ID){
     throw new Error("ADMIN_ID 环境变量未设置！");
 }
+console.log(BOT_TOKEN);
+console.log(ADMIN_ID);
 const bot = new Bot(BOT_TOKEN);
 const admin_id = parseInt(ADMIN_ID);
 
