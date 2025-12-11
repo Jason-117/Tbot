@@ -164,10 +164,17 @@ bot.callbackQuery("cancel_reply",async(ctx)=>{
         return ctx.answerCallbackQuery("非管理员");
     }
     try{
+        const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
+        const targetUserId = contextResult.value?.targetUserId;
+
         //清除上下文消息
         await kv.delete(['reply_context',admin_id]);
-        await ctx.deleteMessage();
+        
+        if(ctx.callbackQuery.message){
+            await ctx.deleteMessage();
+        }
         await ctx.answerCallbackQuery("取消回复操作成功");
+
     }catch(error){
         console.error(error);
         await ctx.answerCallbackQuery("取消回复失败");
@@ -243,13 +250,13 @@ bot.on("message", async (ctx) => {
             }
         }
     }
+    // 处理普通用户消息
     if (userId !== admin_id){
         //转义用户名
         const escapedUsername = escapeUnderscore(username || '无用户名');
         //转义用户消息
         const escapedUserText = escapeUnderscore(ctx.message.text || '');
 
-        // 处理普通用户消息，将消息推送至管理员
         const userText = `新消息来自  @${escapedUsername}\n`;
 
         const replyKeyboard = new InlineKeyboard()
@@ -257,10 +264,6 @@ bot.on("message", async (ctx) => {
         .url("联系用户",`https://t.me/${ctx.from.username}`);
 
         try{
-            // await ctx.copyMessage(admin_id,{
-            //     reply_markup:replyKeyboard,
-            //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
-            // });
             if(ctx.message.text){
                 const fullText = userText + escapedUserText;
                 await bot.api.sendMessage(admin_id,fullText,{
