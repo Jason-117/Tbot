@@ -5,6 +5,7 @@ const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
 if (!BOT_TOKEN) {
     throw new Error("BOT_TOKEN 环境变量未设置！");
 }
+console.log(BOT_TOKEN);
 const bot = new Bot(BOT_TOKEN);
 
 const kv = await Deno.openKv();
