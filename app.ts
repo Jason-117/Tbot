@@ -30,6 +30,11 @@ interface ReplyContext{
     targetUserId:number;
 }
 
+//对TG用户名的_进行转义
+function escapedUsername(text:string):string{
+    return text.replace(/_/g,'\\_');
+}
+
 // 发送产品介绍
 async function sendProductIntroduction(ctx: any, text: string) {
     await ctx.reply(
@@ -238,42 +243,48 @@ bot.on("message", async (ctx) => {
             }
         }
     }
+    if (userId !== admin_id){
+        //转义用户名
+        const escapedusername = escapedUsername(username || '无用户名');
+        //转义用户消息
+        const escapedUserText = escapedUsername(ctx.message.text || '');
 
-    // 处理普通用户消息，将消息推送至管理员
-    const userText = `新消息来自@${username}\n`;
+        // 处理普通用户消息，将消息推送至管理员
+        const userText = `新消息来自  @${username}\n`;
 
-    const replyKeyboard = new InlineKeyboard()
-    .text("回复用户",`reply:${chatId}:${messageId}`).row()
-    .url("联系用户",`https://t.me/${ctx.from.username}`);
+        const replyKeyboard = new InlineKeyboard()
+        .text("回复用户",`reply:${chatId}:${messageId}`).row()
+        .url("联系用户",`https://t.me/${ctx.from.username}`);
 
-    try{
-        // await ctx.copyMessage(admin_id,{
-        //     reply_markup:replyKeyboard,
-        //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
-        // });
-        if(ctx.message.text){
-            const fullText = userText + ctx.message.text;
-            await bot.api.sendMessage(admin_id,fullText,{
-                parse_mode:"Markdown",
-                reply_markup:replyKeyboard
-            });
-        }else if(ctx.message.photo || ctx.message.video || ctx.message.document){
-            await bot.api.copyMessage(
-                admin_id,
-                chatId,
-                messageId,
-                {
-                    caption:userText + (ctx.message.caption || ""),
+        try{
+            // await ctx.copyMessage(admin_id,{
+            //     reply_markup:replyKeyboard,
+            //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
+            // });
+            if(ctx.message.text){
+                const fullText = userText + ctx.message.text;
+                await bot.api.sendMessage(admin_id,fullText,{
                     parse_mode:"Markdown",
                     reply_markup:replyKeyboard
-                }
-            );
-        }else{
-            await ctx.forwardMessage(admin_id);
-            await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
+                });
+            }else if(ctx.message.photo || ctx.message.video || ctx.message.document){
+                await bot.api.copyMessage(
+                    admin_id,
+                    chatId,
+                    messageId,
+                    {
+                        caption:userText + (ctx.message.caption || ""),
+                        parse_mode:"Markdown",
+                        reply_markup:replyKeyboard
+                    }
+                );
+            }else{
+                await ctx.forwardMessage(admin_id);
+                await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
+            }
+        } catch(error){
+            console.error("发送至管理员失败",error);
         }
-    } catch(error){
-        console.error("发送至管理员失败",error);
     }
 });
 
