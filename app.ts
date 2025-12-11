@@ -272,7 +272,7 @@ bot.on("message", async (ctx) => {
             );
         }else{
             await ctx.forwardMessage(admin_id);
-            await bot.api.sendMessage(admin_id,``,{parse_mode:"Markdown",reply_markup:replyKeyboard});
+            await bot.api.sendMessage(admin_id,`贴纸类消息`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
         }
     } catch(error){
         console.error("发送至管理员失败",error);
