@@ -253,7 +253,6 @@ bot.on("message", async (ctx) => {
             parse_mode:"Markdown",
             reply_markup:replyKeyboard
         });
-        await ctx.forwardMessage(admin_id,{disable_notification:true});
     } catch(error){
         console.error("发送至管理员失败",error);
     }
