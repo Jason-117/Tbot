@@ -30,9 +30,9 @@ interface ReplyContext{
     targetUserId:number;
 }
 
-//对TG用户名的_进行转义
-function escapedUsername(text:string):string{
-    return text.replace(/_/g,'\\_');
+//对 "_" 进行转义
+function escapeUnderscore(text: string): string {
+    return text.replace(/_/g, '\\_');
 }
 
 // 发送产品介绍
@@ -245,12 +245,12 @@ bot.on("message", async (ctx) => {
     }
     if (userId !== admin_id){
         //转义用户名
-        const escapedusername = escapedUsername(username || '无用户名');
+        const escapedUsername = escapeUnderscore(username || '无用户名');
         //转义用户消息
-        const escapedUserText = escapedUsername(ctx.message.text || '');
+        const escapedUserText = escapeUnderscore(ctx.message.text || '');
 
         // 处理普通用户消息，将消息推送至管理员
-        const userText = `新消息来自  @${username}\n`;
+        const userText = `新消息来自  @${escapedUsername}\n`;
 
         const replyKeyboard = new InlineKeyboard()
         .text("回复用户",`reply:${chatId}:${messageId}`).row()
@@ -262,7 +262,7 @@ bot.on("message", async (ctx) => {
             //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
             // });
             if(ctx.message.text){
-                const fullText = userText + ctx.message.text;
+                const fullText = userText + escapedUserText;
                 await bot.api.sendMessage(admin_id,fullText,{
                     parse_mode:"Markdown",
                     reply_markup:replyKeyboard
@@ -273,7 +273,7 @@ bot.on("message", async (ctx) => {
                     chatId,
                     messageId,
                     {
-                        caption:userText + (ctx.message.caption || ""),
+                        caption:userText + escapedUserText,
                         parse_mode:"Markdown",
                         reply_markup:replyKeyboard
                     }
@@ -299,13 +299,13 @@ async function handleUsersRequest(req: Request): Promise<Response> {
             users.push(entry.value);
         }
         return new Response(JSON.stringify(users), {
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, // 添加 CORS 头
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
         });
     } catch (error) {
         console.error("从 Deno KV 获取用户数据失败:", error);
         return new Response(JSON.stringify({ error: "无法获取用户数据" }), {
             status: 500,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
         });
     }
 }
