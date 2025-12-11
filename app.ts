@@ -4,6 +4,8 @@ import { Menu } from "https://deno.land/x/grammy_menu@v1.3.0/mod.ts";
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
 if (!BOT_TOKEN) {
     throw new Error("BOT_TOKEN 环境变量未设置！");
+}else{
+    console.log(BOT_TOKEN);
 }
 const bot = new Bot(BOT_TOKEN);
 const admin_id = 6627451529;
