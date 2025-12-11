@@ -140,71 +140,12 @@ bot.command("command1", async (ctx) => {
 //关键词回复
 bot.hears(/[TG飞机WS协议直登筛选过滤云控vbViber]/, async (ctx) => {
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services});
-    if (ctx.message) await pushMessage(ctx);
 });
 
 // 处理其他的消息。
 bot.on("message", async (ctx) => {
    await ctx.reply("请联系客服",{reply_markup: services});
-   if (ctx.message) await pushMessage(ctx);
 });
-
-// 转义
-function escapeHtml(text: string): string {
-    return text.replace(/&/g, '&amp;')
-               .replace(/</g, '&lt;')
-               .replace(/>/g, '&gt;')
-               .replace(/"/g, '&quot;')
-               .replace(/'/g, '&#039;');
-}
-
-/**
- * 格式化用户消息的头部信息，并转发原始消息给管理员
- * @param ctx 消息上下文
- */
-async function pushMessage(ctx: any) {
-    if (!ctx.message) {
-        return;
-    }
-
-    const user = ctx.from;
-
-    // 1. 对所有变量值进行 HTML 转义
-    const escapedUserId = escapeHtml(user.id.toString());
-    const escapedUsername = escapeHtml(user.username || 'N/A');
-    const escapedFirstName = escapeHtml(user.first_name || 'N/A');
-    
-    // 2. 构造 HTML 格式的通知头
-    const pushText = `
-<b>📩 客户新消息</b>
-
-<b>👤 用户信息</b>
-• ID: <code>${escapedUserId}</code>
-• 用户名: @${escapedUsername}
-• 昵称: ${escapedFirstName} 
-    `;
-
-    // 移除不必要的空行和缩进
-    const cleanedText = pushText.trim().split('\n').map(line => line.trim()).join('\n');
-
-    try {
-        // 1. 发送管理员通知头（带有用户信息）
-        await ctx.api.sendMessage(
-            admin_id,
-            cleanedText,
-            {
-                parse_mode: "HTML",
-            }
-        );
-
-        // 2. 转发用户的原始消息（支持所有类型）
-        await ctx.api.forwardMessage(admin_id, ctx.chat.id, ctx.message!.message_id);
-
-        console.log(`用户消息已转发给管理员 ${admin_id}`);
-    } catch (error) {
-        console.error("推送用户消息到管理员失败:", error);
-    }
-}
 
 Deno.addSignalListener("SIGINT", () => bot.stop());
 Deno.addSignalListener("SIGTERM", () => bot.stop());
