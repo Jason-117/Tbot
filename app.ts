@@ -228,7 +228,7 @@ bot.on("message", async (ctx) => {
                 await kv.delete(["reply_context",admin_id]);
 
                 //回复结果反馈至管理员
-                await ctx.reply(`已发送至用户，ID：${targetUserId}`,{reply_to_message_id:ctx.message.message_id});
+                await ctx.reply(`已发送至用户`,{reply_to_message_id:ctx.message.message_id});
                 return;
             }catch(error){
                 console.error("发送消息失败",error);
@@ -240,7 +240,8 @@ bot.on("message", async (ctx) => {
     }
 
     // 处理普通用户消息，将消息推送至管理员
-    const userText = `新消息来自@${username}
+    const userText = `新消息来自
+    @${username}
     ${ctx.message.text || ctx.message.caption || "用户发送消息非文本消息"}
     `;
 
