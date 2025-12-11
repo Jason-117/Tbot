@@ -1,12 +1,16 @@
-import { Bot, InlineKeyboard, webhookCallback } from "https://deno.land/x/grammy@v1.36.1/mod.ts";
+import { Bot, Context, InlineKeyboard, webhookCallback } from "https://deno.land/x/grammy@v1.36.1/mod.ts";
 import { Menu } from "https://deno.land/x/grammy_menu@v1.3.0/mod.ts";
 
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
+const ADMIN_ID = Deno.env.get("ADMIN_ID");
 if (!BOT_TOKEN) {
     throw new Error("BOT_TOKEN 环境变量未设置！");
 }
-console.log(BOT_TOKEN);
+if(!ADMIN_ID){
+    throw new Error("ADMIN_ID 环境变量未设置！");
+}
 const bot = new Bot(BOT_TOKEN);
+const admin_id = parseInt(ADMIN_ID);
 
 const kv = await Deno.openKv();
 
@@ -17,6 +21,11 @@ interface CallbackData {
     messageId?: number;
     chatId?: number;
     product?: string; // 用于标识点击了哪个产品介绍按钮
+}
+
+//回复
+interface ReplyContext{
+    targetUserId:number;
 }
 
 // 发送产品介绍
@@ -110,6 +119,54 @@ bot.callbackQuery("delete_message", async (ctx) => {
     }
 });
 
+// 处理 管理员回复 的回调
+bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
+    //判断是否是管理员
+    if(ctx.from?.id !== admin_id){
+        return ctx.answerCallbackQuery("非管理员");
+    }
+    try{
+        //解析用户ID和消息ID
+        const parts = ctx.match[0].split(':');
+        // parts = ["reply", "CHAT_ID", "MESSAGE_ID"]
+        const userChatId = parseInt(parts[1]);
+
+        //消息存储至 Deno KV 
+        const context : ReplyContext = { targetUserId : userChatId};
+        await kv.set(["reply_context",admin_id], context,{expireIn : 600000});
+
+        //给管理员回复提示
+        const replyInstruction = `回复消息：`
+
+        await ctx.reply(
+            replyInstruction,
+            {
+                parse_mode:"Markdown",
+                reply_markup:new InlineKeyboard().text("取消回复","cancel_reply")
+            }
+        );
+    } catch (error) {
+        console.error("存储消息失败：",error);
+        await ctx.answerCallbackQuery({text:"回复失败",show_alert:true});
+    }
+});
+
+//取消回复
+bot.callbackQuery("cancel_reply",async(ctx)=>{
+    if(ctx.from?.id !== admin_id) {
+        return ctx.answerCallbackQuery("非管理员");
+    }
+    try{
+        //清除上下文消息
+        await kv.delete(['reply_context',admin_id]);
+        await ctx.deleteMessage();
+        await ctx.answerCallbackQuery("取消回复操作成功");
+    }catch(error){
+        console.error(error);
+        await ctx.answerCallbackQuery("取消回复失败");
+    }
+});
+
 //处理start
 bot.command("start", async (ctx) => {
     console.log(`触发start`);
@@ -146,9 +203,60 @@ bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
     await ctx.reply("请联系客服注册平台账号",{reply_markup: services})
 });
 
-// 处理其他的消息。
+// 处理其他的消息并将消息推送至管理员
 bot.on("message", async (ctx) => {
-   await ctx.reply("请联系客服",{reply_markup: services})
+    const userId = ctx.from.id;
+    const chatId = ctx.chat.id;
+    const messageId = ctx.message.message_id;
+    const username = ctx.from.username;
+
+    //处理管理员消息
+    if(userId == admin_id){
+        //检测是否有上下文
+        const contextResult = await kv.get<ReplyContext>(['reply_context',admin_id]);
+        if(contextResult.value){
+            const targetUserId = contextResult.value.targetUserId;
+            const replyText = `回复：\n${ctx.message.text}`;
+
+            try{
+                //将回复消息发送至用户
+                await bot.api.sendMessage(targetUserId,replyText,{
+                    parse_mode:"Markdown"
+                });
+
+                //清除上下文消息
+                await kv.delete(["reply_context",admin_id]);
+
+                //回复结果反馈至管理员
+                await ctx.reply(`已发送至用户，ID：${targetUserId}`,{reply_to_message_id:ctx.message.message_id});
+                return;
+            }catch(error){
+                console.error("发送消息失败",error);
+                await kv.delete(["reply_conext",admin_id]);
+                await ctx.reply("回复失败");
+                return;
+            }
+        }
+    }
+
+    // 处理普通用户消息，将消息推送至管理员
+    const userText = `新消息来自${username}
+    ${ctx.message.text || ctx.message.caption || "非文本消息"}
+    `;
+
+    const replyKeyboard = new InlineKeyboard()
+    .text("回复用户",`reply:${chatId}:${messageId}`).row()
+    .url("联系用户",`https://t.me/${ctx.from.username}`);
+
+    try{
+        await bot.api.sendMessage(admin_id,userText,{
+            parse_mode:"Markdown",
+            reply_markup:replyKeyboard
+        });
+        await ctx.forwardMessage(admin_id,{disable_notification:true});
+    } catch(error){
+        console.error("发送至管理员失败",error);
+    }
 });
 
 Deno.addSignalListener("SIGINT", () => bot.stop());
