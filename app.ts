@@ -288,6 +288,7 @@ bot.on("message", async (ctx) => {
                 await ctx.forwardMessage(admin_id);
                 await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
             }
+            await ctx.reply("您的消息已发送至人工客户，请耐心等待~",{reply_markup: services});
         } catch(error){
             console.error("发送至管理员失败",error);
         }
