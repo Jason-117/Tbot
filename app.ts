@@ -249,10 +249,10 @@ bot.on("message", async (ctx) => {
     .url("联系用户",`https://t.me/${ctx.from.username}`);
 
     try{
-        await ctx.copyMessage(admin_id,{
-            reply_markup:replyKeyboard,
-            caption:ctx.message.caption ? ctx.message.caption + userText : userText
-        });
+        // await ctx.copyMessage(admin_id,{
+        //     reply_markup:replyKeyboard,
+        //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
+        // });
         if(ctx.message.text){
             const fullText = ctx.message.text + userText;
             await bot.api.sendMessage(admin_id,fullText,{
