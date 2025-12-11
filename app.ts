@@ -187,7 +187,7 @@ bot.command("start", async (ctx) => {
     }
     
   //发送产品图
-  await ctx.replyWithPhoto("https://ibb.co/kVWrtsrB")
+//   await ctx.replyWithPhoto("https://ibb.co/kVWrtsrB")
   // 发送菜单。
   await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu });
 //photo(media: string | InputFile, options: InputMediaOptions<InputMediaPhoto>): InputMediaPhoto; 
