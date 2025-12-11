@@ -188,8 +188,6 @@ bot.command("start", async (ctx) => {
         console.log(`用户 ${userId} (${username || '未知'}) 信息已保存。`);
     }
     
-  //发送产品图
-//   await ctx.replyWithPhoto("https://ibb.co/kVWrtsrB")
   // 发送菜单。
   await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu });
 //photo(media: string | InputFile, options: InputMediaOptions<InputMediaPhoto>): InputMediaPhoto; 
@@ -218,7 +216,7 @@ bot.on("message", async (ctx) => {
         const contextResult = await kv.get<ReplyContext>(['reply_context',admin_id]);
         if(contextResult.value){
             const targetUserId = contextResult.value.targetUserId;
-            const replyText = `回复：\n${ctx.message.text}`;
+            const replyText = `消息来自人工客服：\n${ctx.message.text}`;
 
             try{
                 //将回复消息发送至用户
@@ -242,8 +240,8 @@ bot.on("message", async (ctx) => {
     }
 
     // 处理普通用户消息，将消息推送至管理员
-    const userText = `新消息来自${username}
-    ${ctx.message.text || ctx.message.caption || "非文本消息"}
+    const userText = `新消息来自@${username}
+    ${ctx.message.text || ctx.message.caption || "用户发送消息非文本消息"}
     `;
 
     const replyKeyboard = new InlineKeyboard()
