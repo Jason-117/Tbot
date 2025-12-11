@@ -140,10 +140,10 @@ bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
 
         //消息存储至 Deno KV 
         const context : ReplyContext = { targetUserId : userChatId};
-        await kv.set(["reply_context",admin_id], context,{expireIn : 600000});
+        await kv.set(["reply_context",admin_id], context,{expireIn : 60000});
 
         //存储对话活跃时间
-        await kv.set(["active_chat",userChatId],{adminId :admin_id} ,{expireIn : 600000 })
+        await kv.set(["active_chat",userChatId],{adminId :admin_id} ,{expireIn : 60000 })
 
         //给管理员回复提示
         const replyInstruction = `回复消息：`
