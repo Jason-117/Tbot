@@ -161,6 +161,24 @@ bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
     }
 });
 
+//取消回复按钮
+bot.callbackQuery("cancel_reply",async (ctx) =>{
+    if (ctx.from?.id !== admin_id) return;
+    try{
+        const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
+        const targetUserId = contextResult.value?.targetUserId;
+
+        await kv.delete(["reply_context",admin_id]);
+        if(targetUserId){
+            await kv.delete(["active_chat",targetUserId]);
+        }
+
+        await ctx.answerCallbackQuery("退出回复");
+    }catch(error){
+        console.error(error);
+        await ctx.answerCallbackQuery("取消回复失败");
+    }
+});
 
 
 //处理start
@@ -206,24 +224,7 @@ bot.command("exit", async (ctx) =>{
     }
 });
 
-//取消回复按钮
-bot.callbackQuery("cancel_reply",async (ctx) =>{
-    if (ctx.from?.id !== admin_id) return;
-    try{
-        const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
-        const targetUserId = contextResult.value?.targetUserId;
 
-        await kv.delete(["reply_context",admin_id]);
-        if(targetUserId){
-            await kv.delete(["active_chat",targetUserId]);
-        }
-
-        await ctx.answerCallbackQuery("退出回复");
-    }catch(error){
-        console.error(error);
-        await ctx.answerCallbackQuery("取消回复失败");
-    }
-});
 
 //处理command1，即start
 bot.command("command1", async (ctx) => {
