@@ -249,10 +249,13 @@ bot.on("message", async (ctx) => {
     .url("联系用户",`https://t.me/${ctx.from.username}`);
 
     try{
-        await bot.api.sendMessage(admin_id,userText,{
-            parse_mode:"Markdown",
+        // await bot.api.sendMessage(admin_id,userText,{
+        //     parse_mode:"Markdown",
+        //     reply_markup:replyKeyboard
+        // });
+        await ctx.forwardMessage(admin_id),{
             reply_markup:replyKeyboard
-        });
+        }
     } catch(error){
         console.error("发送至管理员失败",error);
     }
