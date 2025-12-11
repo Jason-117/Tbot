@@ -112,6 +112,7 @@ bot.callbackQuery("delete_message", async (ctx) => {
 
 //处理start
 bot.command("start", async (ctx) => {
+    console.log(`触发start`);
     const userId = ctx.from?.id;
     const username = ctx.from?.username;
     const firstName = ctx.from?.first_name;
