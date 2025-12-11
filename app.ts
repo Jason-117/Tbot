@@ -142,6 +142,9 @@ bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
         const context : ReplyContext = { targetUserId : userChatId};
         await kv.set(["reply_context",admin_id], context,{expireIn : 600000});
 
+        //存储对话活跃时间
+        await kv.set(["active_chat",userChatId],{adminId :admin_id} ,{expireIn : 600000 })
+
         //给管理员回复提示
         const replyInstruction = `回复消息：`
 
@@ -158,29 +161,7 @@ bot.callbackQuery(/^reply:(\d+):(\d+)$/, async (ctx) =>{
     }
 });
 
-//取消回复
-bot.callbackQuery("cancel_reply",async(ctx)=>{
-    if(ctx.from?.id !== admin_id) {
-        return ctx.answerCallbackQuery("非管理员");
-    }
-    try{
-        const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
-        const targetUserId = contextResult.value?.targetUserId;
 
-
-        //清除上下文消息
-        await kv.delete(['reply_context',admin_id]);
-
-        if(ctx.callbackQuery.message){
-            await ctx.deleteMessage();
-        }
-        await ctx.answerCallbackQuery("取消回复操作成功");
-
-    }catch(error){
-        console.error(error);
-        await ctx.answerCallbackQuery("取消回复失败");
-    }
-});
 
 //处理start
 bot.command("start", async (ctx) => {
@@ -208,14 +189,45 @@ bot.command("start", async (ctx) => {
     }
 });
 
+bot.command("exit", async (ctx) =>{
+    if (ctx.from?.id !== admin_id) return;
+
+    const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
+    const targetUserId = contextResult.value?.targetUserId;
+
+    try{
+        await kv.delete(["reply_context",admin_id]);
+        if(targetUserId){
+            await kv.delete(["active_chat",targetUserId]);
+        }
+        await ctx.reply("已退出会话",{reply_to_message_id:ctx.message?.message_id})
+    }catch(error){
+        await ctx.reply("退出会话失败",{reply_to_message_id:ctx.message?.message_id})
+    }
+});
+
+//取消回复按钮
+bot.callbackQuery("cancel_reply",async (ctx) =>{
+    if (ctx.from?.id !== admin_id) return;
+    try{
+        const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
+        const targetUserId = contextResult.value?.targetUserId;
+
+        await kv.delete(["reply_context",admin_id]);
+        if(targetUserId){
+            await kv.delete(["active_chat",targetUserId]);
+        }
+
+        await ctx.answerCallbackQuery("退出回复");
+    }catch(error){
+        console.error(error);
+        await ctx.answerCallbackQuery("取消回复失败");
+    }
+});
+
 //处理command1，即start
 bot.command("command1", async (ctx) => {
     await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu })
-});
-
-//关键词回复
-bot.hears(/[TG飞机WS协议直登筛选过滤云控]/, async (ctx) => {
-    await ctx.reply("请联系客服注册平台账号",{reply_markup: services})
 });
 
 // 处理其他的消息并将消息推送至管理员
@@ -255,6 +267,9 @@ bot.on("message", async (ctx) => {
     }
     // 处理普通用户消息
     if (userId !== admin_id){
+        //判断当前会话是否在活跃时间内
+        const activeChat = await kv.get(["active_chat",userId]);
+        const isChatActive = activeChat.value !== null;
         //转义用户名
         const escapedUsername = escapeUnderscore(username || '无用户名');
         //转义用户消息
@@ -288,9 +303,13 @@ bot.on("message", async (ctx) => {
                 await ctx.forwardMessage(admin_id);
                 await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
             }
-            await ctx.reply("您的消息已发送至人工客户，请耐心等待~");
+            //给非活跃内的会话发送自动回复
+            if(!isChatActive){
+                await ctx.reply("您的消息已发送至人工客户，请耐心等待~");
+            }
         } catch(error){
             console.error("发送至管理员失败",error);
+            await ctx.reply("当前服务繁忙，请点击下方按钮联系客服",{reply_markup:services});
         }
     }
 });
