@@ -240,7 +240,7 @@ bot.on("message", async (ctx) => {
     }
 
     // 处理普通用户消息，将消息推送至管理员
-    const userText = `新消息来自  @${username}\n`;
+    const userText = `新消息来自@${username}\n`;
 
     const replyKeyboard = new InlineKeyboard()
     .text("回复用户",`reply:${chatId}:${messageId}`).row()
@@ -263,14 +263,14 @@ bot.on("message", async (ctx) => {
                 chatId,
                 messageId,
                 {
-                    caption:(ctx.message.caption || "") + userId,
+                    caption:userText + (ctx.message.caption || ""),
                     parse_mode:"Markdown",
                     reply_markup:replyKeyboard
                 }
             );
         }else{
             await ctx.forwardMessage(admin_id);
-            await bot.api.sendMessage(admin_id,`贴纸类消息`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
+            await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
         }
     } catch(error){
         console.error("发送至管理员失败",error);
