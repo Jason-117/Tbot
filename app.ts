@@ -254,7 +254,7 @@ bot.on("message", async (ctx) => {
         //     caption:ctx.message.caption ? ctx.message.caption + userText : userText
         // });
         if(ctx.message.text){
-            const fullText = ctx.message.text + userText;
+            const fullText = ctx.message.text;
             await bot.api.sendMessage(admin_id,fullText,{
                 parse_mode:"Markdown",
                 reply_markup:replyKeyboard
