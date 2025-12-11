@@ -249,12 +249,30 @@ bot.on("message", async (ctx) => {
     .url("联系用户",`https://t.me/${ctx.from.username}`);
 
     try{
-        // await bot.api.sendMessage(admin_id,userText,{
-        //     parse_mode:"Markdown",
-        //     reply_markup:replyKeyboard
-        // });
-        await ctx.forwardMessage(admin_id),{
-            reply_markup:replyKeyboard
+        await ctx.copyMessage(admin_id,{
+            reply_markup:replyKeyboard,
+            caption:ctx.message.caption ? ctx.message.caption + userText : userText
+        });
+        if(ctx.message.text){
+            const fullText = ctx.message.text + userText;
+            await bot.api.sendMessage(admin_id,fullText,{
+                parse_mode:"Markdown",
+                reply_markup:replyKeyboard
+            });
+        }else if(ctx.message.photo || ctx.message.video || ctx.message.document){
+            await bot.api.copyMessage(
+                admin_id,
+                chatId,
+                messageId,
+                {
+                    caption:(ctx.message.caption || "") + userId,
+                    parse_mode:"Markdown",
+                    reply_markup:replyKeyboard
+                }
+            );
+        }else{
+            await ctx.forwardMessage(admin_id);
+            await bot.api.sendMessage(admin_id,``,{parse_mode:"Markdown",reply_markup:replyKeyboard});
         }
     } catch(error){
         console.error("发送至管理员失败",error);
