@@ -240,7 +240,7 @@ bot.on("message", async (ctx) => {
     }
 
     // 处理普通用户消息，将消息推送至管理员
-    const userText = `新消息来自@${username}`;
+    const userText = `新消息来自@${username}\n`;
 
     const replyKeyboard = new InlineKeyboard()
     .text("回复用户",`reply:${chatId}:${messageId}`).row()
