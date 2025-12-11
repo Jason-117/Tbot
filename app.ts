@@ -166,7 +166,7 @@ bot.callbackQuery("cancel_reply",async(ctx)=>{
     try{
         const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
         const targetUserId = contextResult.value?.targetUserId;
-        
+
 
         //清除上下文消息
         await kv.delete(['reply_context',admin_id]);
@@ -185,25 +185,27 @@ bot.callbackQuery("cancel_reply",async(ctx)=>{
 //处理start
 bot.command("start", async (ctx) => {
     console.log(`触发start`);
-    const userId = ctx.from?.id;
-    const username = ctx.from?.username;
-    const firstName = ctx.from?.first_name;
-    const lastName = ctx.from?.last_name;
+    if(ctx.from?.id == admin_id){
+        await ctx.reply("管理员");
+    }else{
+        const userId = ctx.from?.id;
+        const username = ctx.from?.username;
+        const firstName = ctx.from?.first_name;
+        const lastName = ctx.from?.last_name;
 
-    if (userId) {
-        // 将用户信息存储到 Deno KV 数据库
-        await kv.set(["users", userId], {
-            username: username,
-            firstName: firstName,
-            lastName: lastName,
-            lastInteraction: new Date().toISOString(), // 记录最后一次交互时间
-        });
-        console.log(`用户 ${userId} (${username || '未知'}) 信息已保存。`);
+        if (userId) {
+            // 将用户信息存储到 Deno KV 数据库
+            await kv.set(["users", userId], {
+                username: username,
+                firstName: firstName,
+                lastName: lastName,
+                lastInteraction: new Date().toISOString(), // 记录最后一次交互时间
+            });
+            console.log(`用户 ${userId} (${username || '未知'}) 信息已保存。`);
+        }
+        // 发送菜单。
+        await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu });
     }
-    
-  // 发送菜单。
-  await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu });
-//photo(media: string | InputFile, options: InputMediaOptions<InputMediaPhoto>): InputMediaPhoto; 
 });
 
 //处理command1，即start
