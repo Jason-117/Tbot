@@ -166,10 +166,11 @@ bot.callbackQuery("cancel_reply",async(ctx)=>{
     try{
         const contextResult = await kv.get<ReplyContext>(["reply_context",admin_id]);
         const targetUserId = contextResult.value?.targetUserId;
+        
 
         //清除上下文消息
         await kv.delete(['reply_context',admin_id]);
-        
+
         if(ctx.callbackQuery.message){
             await ctx.deleteMessage();
         }
