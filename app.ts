@@ -204,8 +204,10 @@ bot.command("start", async (ctx) => {
             });
             console.log(`用户 ${userId} (${username || '未知'}) 信息已保存。`);
         }
+        //发送产品图
+        await ctx.replyWithPhoto("https://ibb.co/kVWrtsrB")
         // 发送菜单。
-        await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu });
+        await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！\n（如需咨询详情或获取个性化方案，请回复‘人工+产品编号’，我们会为您安排专属客服提供1对1支持❤", { reply_markup: menu });
     }
 });
 
@@ -226,8 +228,6 @@ bot.command("exit", async (ctx) =>{
     }
 });
 
-
-
 //处理command1，即start
 bot.command("command1", async (ctx) => {
     await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu })
@@ -239,6 +239,9 @@ bot.on("message", async (ctx) => {
     const chatId = ctx.chat.id;
     const messageId = ctx.message.message_id;
     const username = ctx.from.username;
+
+    //获取消息
+    const messageText = ctx.message.text?ctx.message.text.toLowerCase():'';
 
     //处理管理员消息
     if(userId == admin_id){
@@ -273,9 +276,25 @@ bot.on("message", async (ctx) => {
     }
     // 处理普通用户消息
     if (userId !== admin_id){
+
+        //判断消息是否包含"人工"
+        const isRequest = messageText.includes("人工");
+
         //判断当前会话是否在活跃时间内
         const activeChat = await kv.get(["active_chat",userId]);
         const isChatActive = activeChat.value !== null;
+
+        //判断消息是否转发至管理员
+        //1.当会话为非活跃时，只有包含"人工"的消息才会转发至管理员
+        //2.会话为活跃时，直接转发
+        const messageToAdmin = isChatActive || isRequest;
+
+        //不需要转发，返回提示
+        if(!messageToAdmin){
+            ctx.reply("如需客服帮助，请回复'人工+产品编号'");
+            return;
+        }
+
         //转义用户名
         const escapedUsername = escapeUnderscore(username || '无用户名');
         //转义用户消息
@@ -317,6 +336,7 @@ bot.on("message", async (ctx) => {
             console.error("发送至管理员失败",error);
             await ctx.reply("当前服务繁忙，请点击下方按钮联系客服",{reply_markup:services});
         }
+
     }
 });
 
