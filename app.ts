@@ -16,7 +16,11 @@ const admin_id = parseInt(ADMIN_ID);
 
 const kv = await Deno.openKv();
 
+//会话活跃时间
 const active = 6000 ;
+
+//回复等待时间
+const waitTime = 300000 ;
 
 const handleUpdate = webhookCallback(bot, "std/http");
 
@@ -207,7 +211,7 @@ bot.command("start", async (ctx) => {
         //发送产品图
         await ctx.replyWithPhoto("https://ibb.co/kVWrtsrB")
         // 发送菜单。
-        await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！\n（如需咨询详情或获取个性化方案，请回复‘人工+产品编号’，我们会为您安排专属客服提供1对1支持❤", { reply_markup: menu });
+        await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！\n（如需咨询详情或获取个性化方案，请回复‘人工+产品编号’，我们会为您安排专属客服提供1对1支持❤）", { reply_markup: menu });
     }
 });
 
@@ -230,7 +234,7 @@ bot.command("exit", async (ctx) =>{
 
 //处理command1，即start
 bot.command("command1", async (ctx) => {
-    await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！", { reply_markup: menu })
+    await ctx.reply("您好,这里是Dolphin客服机器人，可以点击下方按钮跳转对应业务。\nDolphin全体员工向您致以最诚挚的新春祝福，祝愿各位老板2025年团队愈加壮大、业绩蒸蒸日上！\n（如需咨询详情或获取个性化方案，请回复‘人工+产品编号’，我们会为您安排专属客服提供1对1支持❤）", { reply_markup: menu })
 });
 
 // 处理其他的消息并将消息推送至管理员
@@ -249,7 +253,7 @@ bot.on("message", async (ctx) => {
         const contextResult = await kv.get<ReplyContext>(['reply_context',admin_id]);
         if(contextResult.value){
             const targetUserId = contextResult.value.targetUserId;
-            const replyText = `消息来自人工客服：\n${ctx.message.text}`;
+            const replyText = `${ctx.message.text}`;
 
             try{
                 const context : ReplyContext = { targetUserId : targetUserId};
@@ -284,10 +288,20 @@ bot.on("message", async (ctx) => {
         const activeChat = await kv.get(["active_chat",userId]);
         const isChatActive = activeChat.value !== null;
 
+        //判断当前会话是否处于等待期间
+        const chatWait = await kv.get(["chat_wait",userId]);
+        const isWait = chatWait.value != null;
+
         //判断消息是否转发至管理员
         //1.当会话为非活跃时，只有包含"人工"的消息才会转发至管理员
         //2.会话为活跃时，直接转发
         const messageToAdmin = isChatActive || isRequest;
+
+        //非活跃对话，且处于等待期
+        if(!messageToAdmin && isWait){
+            await ctx.reply("消息已发送至客服，请您耐心等待");
+            return;
+        }
 
         //不需要转发，返回提示
         if(!messageToAdmin){
@@ -328,8 +342,9 @@ bot.on("message", async (ctx) => {
                 await ctx.forwardMessage(admin_id);
                 await bot.api.sendMessage(admin_id,`点击下方回复按钮进行回复`,{parse_mode:"Markdown",reply_markup:replyKeyboard});
             }
-            //给非活跃内的会话发送自动回复
+            //给非活跃内的会话发送自动回复，设置等待键
             if(!isChatActive){
+                await kv.set(['chat_wait',userId],{timestamp:Date.now()},{expireIn:waitTime});
                 await ctx.reply("您的消息已发送至人工客户，请耐心等待~");
             }
         } catch(error){
